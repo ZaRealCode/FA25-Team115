@@ -1,0 +1,54 @@
+[
+  {
+    "id": "r1_any_001",
+    "roll": 1,
+    "gender": "any",
+    "text": "Give a sincere two-minute compliment about something they did recently.",
+    "severity": 1,
+    "dateStage": "early",
+    "safeTags": ["no-intimacy","conversation","compliment"],
+    "visibility": "visible",
+    "exampleStake": "If you do it, I’ll treat you to coffee."
+  },
+  {
+    "id": "r1_any_002",
+    "roll": 1,
+    "gender": "any",
+    "text": "Share your favorite childhood snack and why you miss it.",
+    "severity": 1,
+    "dateStage": "early",
+    "safeTags": ["nostalgia","conversation"],
+    "visibility": "visible"
+  },
+  {
+    "id": "r2_any_001",
+    "roll": 2,
+    "gender": "any",
+    "text": "Ask one playful 'would-you-rather' question and explain your choice.",
+    "severity": 1,
+    "dateStage": "early",
+    "safeTags": ["icebreaker","conversation"],
+    "visibility": "visible"
+  },
+  {
+    "id": "r4_male_001",
+    "roll": 4,
+    "gender": "male",
+    "text": "Subtly wink four times across the table during the date.",
+    "severity": 2,
+    "dateStage": "early",
+    "safeTags": ["playful","non-intimate"],
+    "visibility": "hidden"
+  },
+  {
+    "id": "r6_any_001",
+    "roll": 6,
+    "gender": "any",
+    "text": "Give a sincere compliment about a personal quality you admire (not physical).",
+    "severity": 3,
+    "dateStage": "getting_to_know",
+    "safeTags": ["emotional","non-physical"],
+    "visibility": "visible"
+  }
+]
+
