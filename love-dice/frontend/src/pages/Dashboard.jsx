@@ -24,6 +24,43 @@ const PlayingCard = ({ title, description, icon: Icon, color, onClick }) => {
 
 const Dashboard = () => {
 
+  const cards = [
+    {
+      title: 'Propose Date',
+      description: 'Set up a friend with someone special',
+      icon: Heart,
+      color: '#FF1744',
+      path: '/propose'
+    },
+    {
+      title: 'Active Dates',
+      description: 'View and manage date proposals',
+      icon: Users,
+      color: '#FF4081',
+      path: '/active'
+    },
+    {
+      title: 'Place Bets',
+      description: 'Add wagers to ongoing dates',
+      icon: DollarSign,
+      color: '#C2185B',
+      path: '/bets'
+    },
+    {
+      title: 'Roll Dice',
+      description: 'Generate date dares with the dice',
+      icon: Dice1,
+      color: '#FF1744',
+      path: '/roll'
+    },
+    {
+      title: 'Date Recap',
+      description: 'Log outcomes and settle bets',
+      icon: FileText,
+      color: '#FF4081',
+      path: '/recap'
+    }
+  ];
   return (
     <div className="min-h-screen bg-black relative">
       dashboard page
