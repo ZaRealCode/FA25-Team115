@@ -23,6 +23,8 @@ const PlayingCard = ({ title, description, icon: Icon, color, onClick }) => {
 };
 
 const Dashboard = () => {
+  const { user, logout } = React.useContext(AuthContext);
+  const navigate = useNavigate();
 
   const cards = [
     {
@@ -63,9 +65,73 @@ const Dashboard = () => {
   ];
   return (
     <div className="min-h-screen bg-black relative">
-      dashboard page
+      <div className="grunge-overlay"></div>
+      
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute top-10 left-20 w-40 h-40 bg-red-600 rounded-full opacity-5 blur-3xl"></div>
+        <div className="absolute bottom-20 right-20 w-48 h-48 bg-pink-500 rounded-full opacity-5 blur-3xl"></div>
+      </div>
+
+      <div className="relative z-10 container mx-auto px-4 py-8">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-12">
+          <div>
+            <h1 className="text-5xl font-bold text-white glow-text mb-2">loveDice</h1>
+            <p className="text-gray-400">Welcome back, <span className="text-pink-500">{user?.username}</span></p>
+          </div>
+          <Button
+            data-testid="logout-button"
+            onClick={logout}
+            variant="outline"
+            className="border-red-600 text-red-600 hover:bg-red-600 hover:text-white"
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            Logout
+          </Button>
+        </div>
+
+        <div className="mb-8 text-center">
+          <h2 className="text-3xl font-bold text-white mb-2">Choose Your Play</h2>
+          <p className="text-gray-400">Select a card to get started</p>
+        </div>
+
+        <div className="carousel-container grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 max-w-7xl mx-auto">
+          {cards.map((card, index) => (
+            <div
+              key={index}
+              className="transform transition-all duration-300 hover:scale-105"
+              style={{ animationDelay: `${index * 100}ms` }}
+            >
+              <PlayingCard
+                title={card.title}
+                description={card.description}
+                icon={card.icon}
+                color={card.color}
+                onClick={() => navigate(card.path)}
+              />
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+          <div className="bg-black/50 border border-red-600/30 rounded-lg p-6 text-center">
+            <div className="text-3xl font-bold text-red-500 mb-2">♥</div>
+            <div className="text-gray-400 text-sm">Your next date adventure awaits</div>
+          </div>
+          <div className="bg-black/50 border border-pink-600/30 rounded-lg p-6 text-center">
+            <div className="text-3xl font-bold text-pink-500 mb-2">♠</div>
+            <div className="text-gray-400 text-sm">Friends making matches for you</div>
+          </div>
+          <div className="bg-black/50 border border-red-600/30 rounded-lg p-6 text-center">
+            <div className="text-3xl font-bold text-red-500 mb-2">♦</div>
+            <div className="text-gray-400 text-sm">Bets placed on your love life</div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
+
+
 
 export default Dashboard;
