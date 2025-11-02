@@ -12,6 +12,7 @@ from datetime import datetime, timezone, timedelta
 from passlib.context import CryptContext
 import jwt
 import random
+from pydantic import BaseModel, EmailStr, Field, ConfigDict
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -31,6 +32,35 @@ app = FastAPI()
 api_router = APIRouter(prefix="/api")
 
 
+
+def hash_password(password: str) -> str:
+    return pwd_context.hash(password)
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return pwd_context.verify(plain_password, hashed_password)
+def create_access_token(data: dict):
+    to_encode = data.copy()
+    expire = datetime.now(timezone.utc) + timedelta(days=ACCESS_TOKEN_EXPIRE_DAYS)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    try:
+        token = credentials.credentials
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = payload.get("sub")
+        if user_id is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        user = await db.users.find_one({"id": user_id}, {"_id": 0})
+        if user is None:
+            raise HTTPException(status_code=401, detail="User not found")
+        return user
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+
 MALE_DARES = [
     "Compliment their outfit within the first 5 minutes",
     "Subtly wink twice during conversation",
@@ -48,6 +78,44 @@ FEMALE_DARES = [
     "Ask about their hidden talent",
     "Subtly touch their arm during conversation"
 ]
+
+
+# Models
+class UserSignup(BaseModel):
+    username: str
+    email: EmailStr
+    password: str
+    gender: str  # "male" or "female"
+
+class UserLogin(BaseModel):
+    username: str
+    password: str
+
+class User(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    username: str
+    email: EmailStr
+    gender: str
+    friends: List[str] = []
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+class DateProposalCreate(BaseModel):
+    target_username: str
+    proposed_match_name: str
+    stakes: str
+
+class DateProposal(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    proposer_id: str
+    proposer_username: str
+    target_user_id: str
+    target_username: str
+    proposed_match_name: str
+    stakes: str
+    status: str = "pending"  # pending, accepted, declined, completed
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 @api_router.post("/auth/signup")
 async def signup(user_data: UserSignup):
@@ -111,6 +179,62 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         "email": current_user["email"],
         "gender": current_user["gender"]
     }
+
+@api_router.post("/proposals", response_model=DateProposal)
+async def create_proposal(proposal: DateProposalCreate, current_user: dict = Depends(get_current_user)):
+    # Find target user
+    target_user = await db.users.find_one({"username": proposal.target_username}, {"_id": 0})
+    if not target_user:
+        raise HTTPException(status_code=404, detail="Target user not found")
+    
+    new_proposal = DateProposal(
+        proposer_id=current_user["id"],
+        proposer_username=current_user["username"],
+        target_user_id=target_user["id"],
+        target_username=target_user["username"],
+        proposed_match_name=proposal.proposed_match_name,
+        stakes=proposal.stakes
+    )
+    
+    await db.proposals.insert_one(new_proposal.model_dump())
+    return new_proposal
+
+@api_router.get("/proposals", response_model=List[DateProposal])
+async def get_proposals(current_user: dict = Depends(get_current_user)):
+    # Get proposals where user is target or proposer
+    proposals = await db.proposals.find({
+        "$or": [
+            {"target_user_id": current_user["id"]},
+            {"proposer_id": current_user["id"]}
+        ]
+    }, {"_id": 0}).to_list(1000)
+    return proposals
+
+@api_router.put("/proposals/{proposal_id}/accept")
+async def accept_proposal(proposal_id: str, current_user: dict = Depends(get_current_user)):
+    proposal = await db.proposals.find_one({"id": proposal_id, "target_user_id": current_user["id"]}, {"_id": 0})
+    if not proposal:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+    
+    await db.proposals.update_one(
+        {"id": proposal_id},
+        {"$set": {"status": "accepted"}}
+    )
+    
+    return {"message": "Proposal accepted"}
+
+@api_router.put("/proposals/{proposal_id}/decline")
+async def decline_proposal(proposal_id: str, current_user: dict = Depends(get_current_user)):
+    proposal = await db.proposals.find_one({"id": proposal_id, "target_user_id": current_user["id"]}, {"_id": 0})
+    if not proposal:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+    
+    await db.proposals.update_one(
+        {"id": proposal_id},
+        {"$set": {"status": "declined"}}
+    )
+    
+    return {"message": "Proposal declined"}
 
 app.include_router(api_router)
 
