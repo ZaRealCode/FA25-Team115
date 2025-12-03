@@ -145,6 +145,19 @@ class Bet(BaseModel):
     completed: bool = False
     won: Optional[bool] = None
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+class DareRoll(BaseModel):
+    proposal_id: str
+    gender: str
+
+class Dare(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    proposal_id: str
+    dare_text: str
+    roll_number: int
+    gender: str
+    completed: bool = False
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
 @api_router.post("/auth/signup")
@@ -304,6 +317,43 @@ async def complete_bet(bet_id: str, won: bool, current_user: dict = Depends(get_
         {"$set": {"completed": True, "won": won}}
     )
     return {"message": "Bet completed"}
+# Dare Routes
+@api_router.post("/dares/roll", response_model=Dare)
+async def roll_dare(dare_roll: DareRoll, current_user: dict = Depends(get_current_user)):
+    # verify proposal exists
+    proposal = await db.proposals.find_one({"id": dare_roll.proposal_id}, {"_id": 0})
+    if not proposal:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+    
+    # roll dice
+    roll = random.randint(1, 6)
+    
+    # seelect dare based on gender
+    dare_list = MALE_DARES if dare_roll.gender.lower() == "male" else FEMALE_DARES
+    dare_text = dare_list[(roll - 1) % len(dare_list)]
+    
+    new_dare = Dare(
+        proposal_id=dare_roll.proposal_id,
+        dare_text=dare_text,
+        roll_number=roll,
+        gender=dare_roll.gender
+    )
+    
+    await db.dares.insert_one(new_dare.model_dump())
+    return new_dare
+
+@api_router.get("/dares/{proposal_id}", response_model=List[Dare])
+async def get_dares(proposal_id: str):
+    dares = await db.dares.find({"proposal_id": proposal_id}, {"_id": 0}).to_list(1000)
+    return dares
+
+@api_router.put("/dares/{dare_id}/complete")
+async def complete_dare(dare_id: str):
+    await db.dares.update_one(
+        {"id": dare_id},
+        {"$set": {"completed": True}}
+    )
+    return {"message": "Dare completed"}
 
 app.include_router(api_router)
 
