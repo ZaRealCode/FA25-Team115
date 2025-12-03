@@ -142,3 +142,4 @@ const ProposeDate = () => {
     </div>
   );
 };
+export default ProposeDate;
