@@ -17,6 +17,11 @@ from pydantic import BaseModel, EmailStr, Field, ConfigDict
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
+# backend api server
+# connects to mongodb
+# serves json api
+# sections: imports, db, helpers, routes
+
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
@@ -33,6 +38,8 @@ api_router = APIRouter(prefix="/api")
 
 
 
+# helper functions
+# hash_password hashes user password
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -70,6 +77,8 @@ MALE_DARES = [
     "Share an embarrassing story from high school"
 ]
 
+# changeable sample dares
+
 FEMALE_DARES = [
     "Play with your hair while listening to them talk",
     "Compliment something unexpected about them",
@@ -79,13 +88,15 @@ FEMALE_DARES = [
     "Subtly touch their arm during conversation"
 ]
 
-
-# Models
+ 
+# models (data shapes)
+# classes define data shape
+# pydantic validates data
 class UserSignup(BaseModel):
     username: str
     email: EmailStr
     password: str
-    gender: str  # "male" or "female"
+    gender: str  # male or female
 
 class UserLogin(BaseModel):
     username: str
@@ -116,6 +127,25 @@ class DateProposal(BaseModel):
     stakes: str
     status: str = "pending"  # pending, accepted, declined, completed
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+class BetCreate(BaseModel):
+    proposal_id: str
+    bet_description: str
+    stake: str
+    is_hidden: bool = False
+
+class Bet(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    proposal_id: str
+    bet_creator_id: str
+    bet_creator_username: str
+    bet_description: str
+    stake: str
+    is_hidden: bool
+    completed: bool = False
+    won: Optional[bool] = None
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
 
 @api_router.post("/auth/signup")
 async def signup(user_data: UserSignup):
@@ -182,7 +212,7 @@ async def get_me(current_user: dict = Depends(get_current_user)):
 
 @api_router.post("/proposals", response_model=DateProposal)
 async def create_proposal(proposal: DateProposalCreate, current_user: dict = Depends(get_current_user)):
-    # Find target user
+    # find target user
     target_user = await db.users.find_one({"username": proposal.target_username}, {"_id": 0})
     if not target_user:
         raise HTTPException(status_code=404, detail="Target user not found")
@@ -201,7 +231,7 @@ async def create_proposal(proposal: DateProposalCreate, current_user: dict = Dep
 
 @api_router.get("/proposals", response_model=List[DateProposal])
 async def get_proposals(current_user: dict = Depends(get_current_user)):
-    # Get proposals where user is target or proposer
+    # get proposals for user
     proposals = await db.proposals.find({
         "$or": [
             {"target_user_id": current_user["id"]},
@@ -235,6 +265,45 @@ async def decline_proposal(proposal_id: str, current_user: dict = Depends(get_cu
     )
     
     return {"message": "Proposal declined"}
+@api_router.post("/bets", response_model=Bet)
+async def create_bet(bet: BetCreate, current_user: dict = Depends(get_current_user)):
+    # verify proposal exists
+    proposal = await db.proposals.find_one({"id": bet.proposal_id}, {"_id": 0})
+    if not proposal:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+    
+    new_bet = Bet(
+        proposal_id=bet.proposal_id,
+        bet_creator_id=current_user["id"],
+        bet_creator_username=current_user["username"],
+        bet_description=bet.bet_description,
+        stake=bet.stake,
+        is_hidden=bet.is_hidden
+    )
+    
+    await db.bets.insert_one(new_bet.model_dump())
+    return new_bet
+
+@api_router.get("/bets/{proposal_id}", response_model=List[Bet])
+async def get_bets(proposal_id: str, current_user: dict = Depends(get_current_user)):
+    bets = await db.bets.find({"proposal_id": proposal_id}, {"_id": 0}).to_list(1000)
+    # filter hidden bets
+    visible_bets = [
+        bet for bet in bets 
+        if not bet["is_hidden"] or bet["bet_creator_id"] == current_user["id"]
+    ]
+    return visible_bets
+@api_router.put("/bets/{bet_id}/complete")
+async def complete_bet(bet_id: str, won: bool, current_user: dict = Depends(get_current_user)):
+    bet = await db.bets.find_one({"id": bet_id}, {"_id": 0})
+    if not bet:
+        raise HTTPException(status_code=404, detail="Bet not found")
+    
+    await db.bets.update_one(
+        {"id": bet_id},
+        {"$set": {"completed": True, "won": won}}
+    )
+    return {"message": "Bet completed"}
 
 app.include_router(api_router)
 
