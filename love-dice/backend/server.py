@@ -371,15 +371,20 @@ async def complete_dare(dare_id: str):
     )
     return {"message": "Dare completed"}
 @api_router.post("/outcomes", response_model=DateOutcome)
-async def create_outcome(outcome: DateOutcomeCreate, current_user: dict = Depends(get_current_user)):
-    # Verify proposal exists and user is target
+async def create_outcome(
+    outcome: DateOutcomeCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    # check proposal exists and user is target
     proposal = await db.proposals.find_one(
         {"id": outcome.proposal_id, "target_user_id": current_user["id"]},
         {"_id": 0}
     )
     if not proposal:
+        # reject missing or unauthorized proposal
         raise HTTPException(status_code=404, detail="Proposal not found or unauthorized")
     
+    #  new outcome object
     new_outcome = DateOutcome(
         proposal_id=outcome.proposal_id,
         happened=outcome.happened,
@@ -388,24 +393,23 @@ async def create_outcome(outcome: DateOutcomeCreate, current_user: dict = Depend
         bet_results=outcome.bet_results
     )
     
+    # save outcome to database and mark proposal as completed
     await db.outcomes.insert_one(new_outcome.model_dump())
-    
-    # Update proposal status
     await db.proposals.update_one(
         {"id": outcome.proposal_id},
         {"$set": {"status": "completed"}}
     )
-    
-    # Update bet results
+    # update each related bet
     for bet_result in outcome.bet_results:
         await db.bets.update_one(
             {"id": bet_result["bet_id"]},
             {"$set": {"completed": True, "won": bet_result["won"]}}
         )
-    
     return new_outcome
+
 @api_router.get("/users/search")
 async def search_users(q: str, current_user: dict = Depends(get_current_user)):
+    # search users by username excluding current user
     users = await db.users.find(
         {
             "username": {"$regex": q, "$options": "i"},
@@ -417,6 +421,7 @@ async def search_users(q: str, current_user: dict = Depends(get_current_user)):
 
 @api_router.get("/outcomes/{proposal_id}", response_model=DateOutcome)
 async def get_outcome(proposal_id: str):
+    # fetch outcome by proposal id
     outcome = await db.outcomes.find_one({"proposal_id": proposal_id}, {"_id": 0})
     if not outcome:
         raise HTTPException(status_code=404, detail="Outcome not found")
