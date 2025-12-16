@@ -1,7 +1,93 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { AuthContext, API } from '@/App';
+import axios from 'axios';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { ArrowLeft, Users, Check, X, Eye } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 const ActiveDates = () => {
-  
+  const { token, user } = React.useContext(AuthContext);
+  const navigate = useNavigate();
+  const [proposals, setProposals] = useState([]);
+  const [selectedProposal, setSelectedProposal] = useState(null);
+  const [bets, setBets] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => { //running only once when the page loads
+    fetchProposals();
+  }, []);
+
+  const fetchProposals = async () => { //fetching all proposals from backend
+    try {
+      const response = await axios.get(`${API}/proposals`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setProposals(response.data);//saving the  proposals
+    } catch (error) {
+      toast.error('Failed to fetch proposals');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAccept = async (proposalId) => {//accepting one 
+    try {
+      await axios.put(`${API}/proposals/${proposalId}/accept`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success('Proposal accepted! Time to roll the dice!');
+      fetchProposals();
+    } catch (error) {
+      toast.error('Failed to accept proposal');
+    }
+  };
+
+  const handleDecline = async (proposalId) => {//decling proposal
+    try {
+      await axios.put(`${API}/proposals/${proposalId}/decline`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success('Proposal declined');
+      fetchProposals();
+    } catch (error) {
+      toast.error('Failed to decline proposal');
+    }
+  };
+
+  const viewBets = async (proposal) => {//loading bets for a proposal
+    setSelectedProposal(proposal);
+    try {
+      const response = await axios.get(`${API}/bets/${proposal.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setBets(response.data);
+    } catch (error) {
+      toast.error('Failed to fetch bets');
+    }
+  };
+
+  const getStatusBadge = (status) => {//a badge color is chosen based on status here
+    const colors = {
+      pending: 'bg-yellow-500/20 text-yellow-500 border-yellow-500/50',
+      accepted: 'bg-green-500/20 text-green-500 border-green-500/50',
+      declined: 'bg-gray-500/20 text-gray-500 border-gray-500/50',
+      completed: 'bg-blue-500/20 text-blue-500 border-blue-500/50'
+    };
+    return colors[status] || '';
+  };
+
+  if (loading) {//basic loading screen format here
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-white text-xl">Loading...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-black relative">
       <div className="grunge-overlay"></div>
