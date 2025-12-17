@@ -25,3 +25,8 @@ Install yarn package manager globally and then run the following commands in the
     yarn start
 
 
+Basic Technical architecture:
+    The love-dice application uses a simple three-layer architecture consisting of a React frontend, a FastAPI backend, and a MongoDB database. The frontend handles user interaction and sends HTTP requests to the backend, which processes logic and communicates with the database. Data is exchanged using JSON, and the frontend never accesses the database directly. This clear separation of components makes the system modular, secure, and easy to maintain.
+
+
+
