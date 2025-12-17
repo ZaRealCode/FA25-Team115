@@ -1,4 +1,8 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import { AuthContext } from '@/App';
+import { Button } from '@/components/ui/button';
+import { Heart, Users, DollarSign, Dice1, FileText, LogOut } from 'lucide-react';
 
 const PlayingCard = ({ title, description, icon: Icon, color, onClick }) => {
   return (
