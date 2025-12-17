@@ -1,4 +1,14 @@
 ﻿# FA25-Team115
+
+Project Summary
+LoveDice is a social dating–wager web app where friends propose dates, place playful, non-monetary bets, and generate dares using a virtual heart-pipped dice. The goal of LoveDice is to make dating more fun and social by involving friends as matchmakers and participants, while keeping the experience lighthearted and pressure-free.
+
+Team Members & Roles
+Aryan — Backend & API development
+Vishwa — Frontend development & UI interactions
+Raizel — Frontend development & product design
+Aadeesh — Frontend development & testing support
+
 Backend:
     
     1) Make sure you have MongoDB installed and an instance running
@@ -13,4 +23,5 @@ Install yarn package manager globally and then run the following commands in the
 
 1. Start the development server:
     yarn start
+
 
